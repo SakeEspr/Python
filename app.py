@@ -1,5 +1,8 @@
 import pygame
 import random
+import os
+
+os.environ['SDL_VIDEO_CENTERED'] = '1'  # Center window on screen
 
 # Initializes Pygame
 pygame.init()
@@ -22,15 +25,24 @@ b_dx = 2  # horizontal speed
 
 # Score
 score = 0
+running = True
+game_over = False
+flash_mode = False
 
 # Game loop
-running = True
 while running:
-    screen.fill((0, 0, 0))
+    if game_over and flash_mode:
+        screen.fill((random.randint(0,255), random.randint(0,255), random.randint(0,255)))
+    else: screen.fill((0, 0, 0))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            pygame.quit()
+            running = False
+        
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_BACKSPACE:
+                running = False
+
 
     # Paddle movement
     # Paddle movement with wrap-around
@@ -42,38 +54,40 @@ while running:
     elif paddle.left > W:
         paddle.right = 0
 
-    # Move block
-    block.x += b_dx
-    block.y += b_dy
+    # Gameplay logic if not game over
+    if not game_over:
+        block.x += b_dx
+        block.y += b_dy
 
-    # Bounce off walls
-    if block.left <= 0 or block.right >= W:
-        b_dx *= -1
+        # Bounce off sides
+        if block.left <= 0 or block.right >= W:
+             b_dx *= -1
 
-    # Bounce off top
-    if block.top <= 0:
-        b_dy *= -1
+        # Bounce off Top
+        if block.top <= 0:
+            b_dy *= -1
 
-    # Bounce off paddle
-    if block.colliderect(paddle) and b_dy > 0:
-        b_dy *= -1
-        score += 1
-        b_dy *=1.15
+        # Bounce off Paddle
+        if block.colliderect(paddle) and b_dy > 0:
+            b_dy *= -1
+            score += 1
+            b_dy *=1.15
+
+        if block.bottom >= H:
+            game_over = True
+            screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+            flash_mode = True
         
-
-    # Game over if block hits bottom
-    if block.bottom >= H:
-        game_over = font.render("Game Over! Final Score: You Suck", True, (255, 0, 0))
-        screen.blit(game_over, (W // 2 - 115, H // 2))
-        pygame.display.flip()
-        pygame.time.wait(20000)
-        running = False
-
     # Draw everything
     pygame.draw.rect(screen, (random.randint(0,255), random.randint(0,255), random.randint(0,255)), paddle)
     pygame.draw.rect(screen, (random.randint(0,255), random.randint(0,255), random.randint(0,255)), block)
     score_text = font.render(f"Score: {score}", True, (255, 255, 255))
     screen.blit(score_text, (10, 10))
+    
+    # Game over if block hits bottom
+
+
+
 
     pygame.display.flip()
     clock.tick(60)
