@@ -1,0 +1,64 @@
+import numpy as np
+import soundcard as sc
+import pygame
+import sys
+
+# ==== SETTINGS ====
+SAMPLE_RATE = 44100
+BLOCK_SIZE = 1024
+NUM_BARS = 50
+BAR_WIDTH = 20
+BAR_GAP = 2
+WINDOW_WIDTH = (BAR_WIDTH + BAR_GAP) * NUM_BARS
+WINDOW_HEIGHT = 400
+FPS = 120
+SMOOTHING = 0.8  # Smooth bar movement
+
+def pick_loopback_device():
+    mics = sc.all_microphones(include_loopback=True)
+    loopbacks = [m for m in mics if m.isloopback]
+    if not loopbacks:
+        print("No loopback devices found! Make sure you have Stereo Mix or equivalent.")
+        sys.exit(1)
+    # Use the first loopback device automatically
+    return loopbacks[0]
+
+def main():
+    mic = pick_loopback_device()
+
+    pygame.init()
+    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    pygame.display.set_caption("Smooth White Audio Visualizer")
+    clock = pygame.time.Clock()
+
+    bar_heights = np.zeros(NUM_BARS)
+
+    with mic.recorder(samplerate=SAMPLE_RATE, blocksize=BLOCK_SIZE) as rec:
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    return
+
+            # Record audio and convert to mono
+            data = rec.record(numframes=BLOCK_SIZE)
+            audio = np.mean(data, axis=1)
+
+            # FFT and magnitude
+            fft = np.abs(np.fft.rfft(audio)[:NUM_BARS])
+            fft = np.interp(fft, [0, np.max(fft)+1e-6], [0, WINDOW_HEIGHT])
+
+            # Smooth movement
+            bar_heights = SMOOTHING * bar_heights + (1 - SMOOTHING) * fft
+
+            # Draw bars
+            screen.fill((0, 0, 0))
+            for i, h in enumerate(bar_heights):
+                x = i * (BAR_WIDTH + BAR_GAP)
+                pygame.draw.rect(screen, (255, 255, 255), (x, WINDOW_HEIGHT - int(h), BAR_WIDTH, int(h)))
+
+            pygame.display.flip()
+            clock.tick(FPS)
+
+if __name__ == "__main__":
+    main()
