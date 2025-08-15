@@ -1,5 +1,0 @@
-print("C:\\Projects\\Test")
-	
-
-
-
